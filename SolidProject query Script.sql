@@ -4,37 +4,64 @@ Queries to be used for presentation in Tableau
 
 */
 
-
 --- 1. Death rate in the world
-select location, SUM(cast(new_cases as float)) as "total cases", sum(cast(new_deaths as float)) as "total death", (sum(cast(new_deaths as float))/sum(cast(new_cases as float)))*100 as "Death Rate"
-from SolidProject..CovidDeaths 
---Where location like '%south africa%'
-Where continent is not null and population is not null
-group by location
-order by "Death Rate" desc
+SELECT 
+    location,
+    SUM(CAST(new_cases AS FLOAT)) AS "total cases",
+    SUM(CAST(new_deaths AS FLOAT)) AS "total death",
+    (SUM(CAST(new_deaths AS FLOAT)) / SUM(CAST(new_cases AS FLOAT))) * 100 AS "Death Rate"
+FROM SolidProject..CovidDeaths
+WHERE continent IS NOT NULL 
+  AND population IS NOT NULL
+GROUP BY location
+ORDER BY "Death Rate" DESC;
 
---- 2. Death rate locally
-select location, SUM(cast(new_cases as float)) as "total cases", sum(cast(new_deaths as float)) as "total death", (sum(cast(new_deaths as float))/sum(cast(new_cases as float)))*100 as "Death Rate"
-from SolidProject..CovidDeaths 
-Where location like '%south africa%' 
---where continent is not null and population is not null
-group by location
---order by 1,2
+/* 
+Purpose: 
+Calculates the death rate for each country (location) by dividing total deaths by total cases and multiplying by 100. 
+Filters out aggregate rows (where continent is NULL) and rows without population data to ensure country-level accuracy.
+*/
 
+--Death Rate Locally (South Africa)
+SELECT 
+    location,
+    SUM(CAST(new_cases AS FLOAT)) AS "total cases",
+    SUM(CAST(new_deaths AS FLOAT)) AS "total death",
+    (SUM(CAST(new_deaths AS FLOAT)) / SUM(CAST(new_cases AS FLOAT))) * 100 AS "Death Rate"
+FROM SolidProject..CovidDeaths
+WHERE location LIKE '%South Africa%'
+GROUP BY location;
+
+/*
+Purpose: Focuses on South Africa specifically, calculating the same death rate metric for local analysis.
+*/
 
 -- 3. Total number of deaths by Continents
-select continent, SUM(cast(new_deaths as float)) as "Death Count"
-from SolidProject..CovidDeaths 
-Where continent is not null and population is not null
-group by continent
-ORDER BY "Death Count"
+SELECT 
+    continent,
+    SUM(CAST(new_deaths AS FLOAT)) AS "Death Count"
+FROM SolidProject..CovidDeaths
+WHERE continent IS NOT NULL 
+  AND population IS NOT NULL
+GROUP BY continent
+ORDER BY "Death Count";
+/*
+Purpose: Aggregates total deaths by continent, providing a continental-level view of COVID-19 mortality.
+*/
 
 -- 4. Total numer of deaths Globally
-select location, SUM(cast(new_deaths as float)) as "Death Count"
-from SolidProject..CovidDeaths 
-Where continent is null and location like '%World%'
-group by location
-ORDER BY "Death Count"
+SELECT 
+    location,
+    SUM(CAST(new_deaths AS FLOAT)) AS "Death Count"
+FROM SolidProject..CovidDeaths
+WHERE continent IS NULL 
+  AND location LIKE '%World%'
+GROUP BY location
+ORDER BY "Death Count";
+
+/*
+Purpose: Retrieves the global death count using the aggregated "World" row in the dataset.
+*/
 
 -- 5. Countries with the highest infection rate 
 select location,date,  MAX(cast(new_cases as float)) as "Highest number of new cases", MAX(cast(total_cases as float)) as "Highest number of cases", (MAX(cast(new_cases as float))/MAX(cast(total_cases as float)))*100 as "Infection Rate"
