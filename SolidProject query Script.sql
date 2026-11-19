@@ -64,78 +64,120 @@ Purpose: Retrieves the global death count using the aggregated "World" row in th
 */
 
 -- 5. Countries with the highest infection rate 
-select location,date,  MAX(cast(new_cases as float)) as "Highest number of new cases", MAX(cast(total_cases as float)) as "Highest number of cases", (MAX(cast(new_cases as float))/MAX(cast(total_cases as float)))*100 as "Infection Rate"
-from SolidProject..CovidDeaths
-where continent is not null and population is not null
-group by location, date
-order by date, [Infection rate]
+SELECT 
+    location,
+    date,
+    MAX(CAST(new_cases AS FLOAT)) AS "Highest number of new cases",
+    MAX(CAST(total_cases AS FLOAT)) AS "Highest number of cases",
+    (MAX(CAST(new_cases AS FLOAT)) / MAX(CAST(total_cases AS FLOAT))) * 100 AS "Infection Rate"
+FROM SolidProject..CovidDeaths
+WHERE continent IS NOT NULL 
+  AND population IS NOT NULL
+GROUP BY location, date
+ORDER BY date, [Infection Rate];
 
---joining the two tables
+/*
+Purpose: Retrieves the global death count using the aggregated "World" row in the dataset.
+*/
 
-Select *
-from SolidProject..CovidDeaths cd
-join SolidProject..CovidVaccinations cv
-	on cd.date=cv.date
-	and cd.location=cv.location
+-- 6. joining the two tables
 
---looking at total Population vs total number of Vaccination per day in South Africa
-Select cv.continent, cv.location, cv.date, population, new_vaccinations, SUM(CONVERT(float, new_vaccinations))
-														over(PARTITION by cd.location
-														order by cd.location, cd.date)
-														as "total vaccinations"
-from SolidProject..CovidDeaths cd
-join SolidProject..CovidVaccinations cv
-	on cd.date=cv.date
-	and cd.location=cv.location
-where cd.continent is not NULL and cd.population is not null and cd.location like '%south africa%'
-order by 2,3
+SELECT *
+FROM SolidProject..CovidDeaths cd
+JOIN SolidProject..CovidVaccinations cv
+    ON cd.date = cv.date
+    AND cd.location = cv.location;
 
+/*
+Purpose: Demonstrates the join between deaths and vaccinations tables on date and location, forming the foundation for combined analysis.
+*/
+	
+-- 7. looking at total Population vs total number of Vaccination per day in South Africa
+SELECT 
+    cv.continent,
+    cv.location,
+    cv.date,
+    population,
+    new_vaccinations,
+    SUM(CONVERT(FLOAT, new_vaccinations)) 
+        OVER (PARTITION BY cd.location 
+              ORDER BY cd.location, cd.date) AS "total vaccinations"
+FROM SolidProject..CovidDeaths cd
+JOIN SolidProject..CovidVaccinations cv
+    ON cd.date = cv.date
+    AND cd.location = cv.location
+WHERE cd.continent IS NOT NULL 
+  AND cd.population IS NOT NULL 
+  AND cd.location LIKE '%South Africa%'
+ORDER BY 2, 3;
 
---Using CTE
-with PopvsVac (continent, location, date, population, new_vaccinations, total_vaccinations) as (
-Select cv.continent, cv.location, cv.date, population, new_vaccinations, SUM(CONVERT(float, new_vaccinations))
-														over(PARTITION by cd.location
-														order by cd.location, cd.date)
-														as "total vaccinations"
-from SolidProject..CovidDeaths cd
-join SolidProject..CovidVaccinations cv
-	on cd.date=cv.date
-	and cd.location=cv.location
-where cd.continent is not NULL and cd.population is not null and cd.location like '%south africa%'
---order by 2,3 (the 'order by' clause is invalide in a CTE)
+/*
+Purpose: Uses a window function to compute a running total of vaccinations over time for South Africa, alongside population data.
+*/
+
+-- 8. Using CTE
+WITH PopvsVac (continent, location, date, population, new_vaccinations, total_vaccinations) AS (
+    SELECT 
+        cv.continent,
+        cv.location,
+        cv.date,
+        population,
+        new_vaccinations,
+        SUM(CONVERT(FLOAT, new_vaccinations)) 
+            OVER (PARTITION BY cd.location 
+                  ORDER BY cd.location, cd.date) AS "total vaccinations"
+    FROM SolidProject..CovidDeaths cd
+    JOIN SolidProject..CovidVaccinations cv
+        ON cd.date = cv.date
+        AND cd.location = cv.location
+    WHERE cd.continent IS NOT NULL 
+      AND cd.population IS NOT NULL 
+      AND cd.location LIKE '%South Africa%'
 )
+SELECT *, (total_vaccinations / population) * 100 AS "rate of the vaccinated"
+FROM PopvsVac;
 
+/*
+Purpose: Encapsulates the running vaccination total in a CTE and then calculates the percentage of the population vaccinated.
+*/
+	
+-- 9. Using CTE to add a Percentage of vaccinated population Column
+DROP TABLE IF EXISTS #PopulationvsVaccinations;
 
--- Using CTE to add a Percentage of vaccinated population Column
-select *, (total_vaccinations/population)*100 as "rate of the vaccinated" 
-from PopvsVac
+CREATE TABLE #PopulationvsVaccinations (
+    continent NVARCHAR(255),
+    location NVARCHAR(255),
+    date DATETIME,
+    population NUMERIC,
+    new_vaccinations NUMERIC,
+    total_vaccinations NUMERIC
+);
 
+INSERT INTO #PopulationvsVaccinations
+SELECT 
+    cv.continent,
+    cv.location,
+    cv.date,
+    population,
+    new_vaccinations,
+    SUM(CONVERT(FLOAT, new_vaccinations)) 
+        OVER (PARTITION BY cd.location 
+              ORDER BY cd.location, cd.date) AS "total vaccinations"
+FROM SolidProject..CovidDeaths cd
+JOIN SolidProject..CovidVaccinations cv
+    ON cd.date = cv.date
+    AND cd.location = cv.location
+WHERE cd.continent IS NOT NULL 
+  AND cd.population IS NOT NULL 
+  AND cd.location LIKE '%South Africa%';
 
---Using a TEMP TABLE
-Drop table if exists #PopulationvsVaccinations
-Create table #PopulationvsVaccinations
-(
-continent nvarchar(255),
-location nvarchar(255),
-date datetime,
-population numeric,
-new_vaccinations numeric,
-total_vaccinations numeric,
-)
-Insert into #PopulationvsVaccinations
-Select cv.continent, cv.location, cv.date, population, new_vaccinations, SUM(CONVERT(float, new_vaccinations))
-														over(PARTITION by cd.location
-														order by cd.location, cd.date)
-														as "total vaccinations"
-from SolidProject..CovidDeaths cd
-join SolidProject..CovidVaccinations cv
-	on cd.date=cv.date
-	and cd.location=cv.location
-where cd.continent is not NULL and cd.population is not null and cd.location like '%south africa%'
+SELECT *, (total_vaccinations / population) * 100 AS "rate of the vaccinated"
+FROM #PopulationvsVaccinations;
 
--- Using TEMP TABLE to add a Percentage of vaccinated population Column
-select *, (total_vaccinations/population)*100 as "rate of the vaccinated" 
-from #PopulationvsVaccinations
+/*
+Purpose: Achieves the same result as the CTE approach but persists the intermediate results in a temporary table, 
+which can be useful for performance optimization or multi-step analyses.
+*/
 
 
 --------------------------------------------------------------------THE END---------------------------------------------------------------------------------------------------------------------------
