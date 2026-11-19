@@ -1,6 +1,26 @@
 /* 
 
-Queries to be used for presentation in Tableau
+COVID-19 Data Analysis SQL Script
+
+Overview
+
+This document presents a collection of SQL queries designed for analyzing global COVID-19 data, with a specific focus on South Africa. 
+The queries are intended for use in Tableau for data visualization and presentation purposes. The dataset comprises two tables:
+
+	CovidDeaths — Contains COVID-19 case, death, and population data by location and date.
+
+	CovidVaccinations — Contains vaccination data by location and date.
+
+The script is organized into the following analytical themes:
+
+1.	Death rate analysis (global and local)
+
+2.	Death counts by continent and globally
+
+3.	Infection rate analysis
+
+4.	Population vs. vaccination analysis (using Joins, CTEs, and Temp Tables)
+
 
 */
 
